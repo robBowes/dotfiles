@@ -1,0 +1,11 @@
+[core]
+	hooksPath = ~/.git-support/hooks
+[user]
+	name = Robert Bowes
+	email = rbowes@zola.com
+[rerere]
+	enabled = true
+[help]
+	autocorrect = 10
+[pull]
+	rebase = false
