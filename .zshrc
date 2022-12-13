@@ -1,8 +1,35 @@
+
+typeset -U path cdpath fpath manpath
+
+for profile in ${(z)NIX_PROFILES}; do
+  fpath+=($profile/share/zsh/site-functions $profile/share/zsh/$ZSH_VERSION/functions $profile/share/zsh/vendor-completions)
+done
+
+HELPDIR="/nix/store/5in2cvjiblzpbn8myjj97yjj59g39yhl-zsh-5.9/share/zsh/$ZSH_VERSION/help"
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
 export ZSH="$HOME/.oh-my-zsh"
+
+HISTSIZE="10000"
+SAVEHIST="10000"
+
+HISTFILE="$HOME/.zsh_history"
+mkdir -p "$(dirname "$HISTFILE")"
+
+
+setopt HIST_FCNTL_LOCK
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_SPACE
+unsetopt HIST_EXPIRE_DUPS_FIRST
+setopt SHARE_HISTORY
+unsetopt EXTENDED_HISTORY
+
+
+eval "$(/nix/store/nqnx6wpcwrc7h5y139hnalwdcx6ya1sb-direnv-2.32.2/bin/direnv hook zsh)"
+
+
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -10,7 +37,7 @@ export ZSH="$HOME/.oh-my-zsh"
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
 ZSH_THEME="robbyrussell"
 
-export JIRA_URL="https://newamsterdamlabs.atlassian.net/"
+# export JIRA_URL="https://newamsterdamlabs.atlassian.net/"
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
@@ -137,3 +164,7 @@ export EDITOR='vim'
 
 export PATH=$JAVA_HOME/bin:$PATH
 alias t="tee >(pbcopy)"
+export NIX_PATH=$HOME/.nix-defexpr/channels:/nix/var/nix/profiles/per-user/root/channels${NIX_PATH:+:$NIX_PATH}
+
+source $HOME/.nix-profile/etc/profile.d/hm-session-vars.sh
+export PATH="'"$(brew --prefix)"'/opt/python@3.9/libexec/bin:$PATH"
