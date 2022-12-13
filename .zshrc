@@ -122,11 +122,9 @@ source $(brew --prefix)/opt/chruby/share/chruby/chruby.sh
 
 source $(brew --prefix)/opt/chruby/share/chruby/auto.sh
 
-chruby ruby-3.1.1
+chruby ruby-3.1.3
 
-export JAVA11_HOME=$(/usr/libexec/java_home -v 11)
 
-export JAVA_HOME=$JAVA11_HOME
 export DEBUG_PRINT_LIMIT=60000
 
 
