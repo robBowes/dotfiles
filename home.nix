@@ -27,6 +27,9 @@
             plugins = [ "git" "autojump" ];
             theme = "robbyrussell";
         };
+         shellAliases = {
+            gs = "git status";
+        };
     };
 
 }
