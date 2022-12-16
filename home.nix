@@ -7,12 +7,10 @@
 
     programs.home-manager.enable = true;
 
-    home.packages = [ pkgs.zsh-autosuggestions pkgs.autojump pkgs.python ];
+    home.packages = [ pkgs.zsh-autosuggestions pkgs.autojump pkgs.python pkgs.tmux pkgs.nodejs-18_x ];
 
     programs.direnv.enable = true;
     programs.direnv.nix-direnv.enable = true;
-    # optional for nix flakes support in home-manager 21.11, not required in home-manager unstable or 22.05
-    #  programs.direnv.nix-direnv.enableFlakes = true;
 
     programs.autojump = {
         enable = true;
