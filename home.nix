@@ -7,7 +7,7 @@
 
     programs.home-manager.enable = true;
 
-    home.packages = [ pkgs.zsh-autosuggestions pkgs.autojump pkgs.python pkgs.tmux pkgs.nodejs-18_x ];
+    home.packages = [ pkgs.zsh-autosuggestions pkgs.autojump pkgs.python3 pkgs.tmux pkgs.nodejs-18_x pkgs.nodePackages.pnpm pkgs.grpcurl pkgs.awscli2 pkgs.nixpkgs-fmt pkgs.jdk11 pkgs.shellcheck pkgs.postgresql_15 pkgs.ffmpeg pkgs.deno];
 
     programs.direnv.enable = true;
     programs.direnv.nix-direnv.enable = true;
@@ -27,6 +27,7 @@
         };
          shellAliases = {
             gs = "git status";
+            awsssh = "deno run --allow-all https://deno.land/x/aws_sm@0.0.6/main.ts";
         };
     };
 
