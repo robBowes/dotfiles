@@ -28,7 +28,14 @@
          shellAliases = {
             gs = "git status";
             awsssh = "deno run --allow-all https://deno.land/x/aws_sm@0.0.6/main.ts";
+            papi = "pnpm -F api.vesselfunds.com";
+            pweb = "pnpm -F vesselfunds.com";
         };
+        initExtra = ''
+        pwd
+        ./test.sh
+        '';
+
     };
 
 }
