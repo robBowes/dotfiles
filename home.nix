@@ -1,4 +1,4 @@
-{ config, pkgs, lib, neovim-flake, system, ... }:
+{ config, pkgs, lib, ... }:
 {
   home.username = "robbowes";
   home.homeDirectory = "/Users/robbowes";
@@ -27,10 +27,23 @@
     pkgs."_1password-cli"
     pkgs.yarn
     pkgs.codex
-
-    # Neovim from flake
-    neovim-flake.packages.${system}.default
   ];
+
+  # Nixvim configuration
+  programs.nixvim = {
+    enable = true;
+    defaultEditor = true;
+    viAlias = true;
+    vimAlias = true;
+
+    opts = {
+      number = true;
+      relativenumber = true;
+      shiftwidth = 2;
+      tabstop = 2;
+      expandtab = true;
+    };
+  };
 
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;

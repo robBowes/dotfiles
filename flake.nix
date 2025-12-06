@@ -7,11 +7,11 @@
     home-manager.url = "github:nix-community/home-manager";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
-    neovim-flake.url = "github:jordanisaacs/neovim-flake";
-    neovim-flake.inputs.nixpkgs.follows = "nixpkgs";
+    nixvim.url = "github:nix-community/nixvim";
+    nixvim.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, home-manager, neovim-flake, ... }:
+  outputs = { self, nixpkgs, home-manager, nixvim, ... }:
   let
     system = "aarch64-darwin";
     pkgs = import nixpkgs {
@@ -21,8 +21,10 @@
   in {
     homeConfigurations."robbowes" = home-manager.lib.homeManagerConfiguration {
       inherit pkgs;
-      extraSpecialArgs = { inherit neovim-flake system; };
-      modules = [ ./home.nix ];
+      modules = [
+        nixvim.homeModules.nixvim
+        ./home.nix
+      ];
     };
   };
 }
