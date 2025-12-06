@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# Increase file handles
+ulimit -n 524288
+
 # Aliases
 alias gs='git status'
-alias awsssh="deno run --allow-all https://deno.land/x/aws_sm@0.0.6/main.ts"
+alias awsssh="deno run --allow-all https://jsr.io/@rob-bowes/sm/0.0.7/main.ts"
 alias papi="pnpm -F api.vesselfunds.com"
 alias pweb="pnpm -F vesselfunds.com"
 
