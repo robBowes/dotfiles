@@ -28,8 +28,8 @@
     pkgs.yarn
     pkgs.codex
 
-    # Neovim from flake (maximal config with all language support)
-    neovim-flake.packages.${system}.maximal
+    # Neovim from flake
+    neovim-flake.packages.${system}.default
   ];
 
   programs.direnv.enable = true;
