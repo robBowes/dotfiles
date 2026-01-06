@@ -1,4 +1,7 @@
 { config, pkgs, lib, ... }:
+let
+  unstable = import <nixpkgs-unstable> { config = { allowUnfree = true; }; };
+in
 {
   home.username = "robbowes";
   home.homeDirectory = "/Users/robbowes";
@@ -23,27 +26,15 @@
     pkgs.ffmpeg
     pkgs.deno
     pkgs.ripgrep
-    pkgs.claude-code
+    unstable.claude-code
     pkgs."_1password-cli"
     pkgs.yarn
     pkgs.codex
+    pkgs.neovim
+    pkgs.lazygit
+    pkgs.fd  # for telescope
+    pkgs.pandoc
   ];
-
-  # Nixvim configuration
-  programs.nixvim = {
-    enable = true;
-    defaultEditor = true;
-    viAlias = true;
-    vimAlias = true;
-
-    opts = {
-      number = true;
-      relativenumber = true;
-      shiftwidth = 2;
-      tabstop = 2;
-      expandtab = true;
-    };
-  };
 
   programs.direnv.enable = true;
   programs.direnv.nix-direnv.enable = true;
