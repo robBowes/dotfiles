@@ -29,3 +29,5 @@ We don't use rpc for anything complex, we actually ship everything as a unit. Yo
 When using vitest, use the dot reporter and use silent if possible to save on tokens
 
 Most of the time there is a dev db at psql postgresql://user:pass@localhost:9000/postgresql
+
+Often the best way to quickly communicate a design is an ascii version. Use this when planning visual components

@@ -1,10 +1,27 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env tsx
 import { Client } from '@notionhq/client';
 import { NotionToMarkdown } from 'notion-to-md';
 import { parseArgs } from 'util';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const n2m = new NotionToMarkdown({ notionClient: notion });
+
+function extractId(input: string): string {
+  // If it's a URL, parse it
+  if (input.includes('notion.so')) {
+    const url = new URL(input);
+    // Check for p= query param first (subpage)
+    const pParam = url.searchParams.get('p');
+    if (pParam) return pParam.replace(/-/g, '');
+    // Otherwise extract from path (last 32 hex chars)
+    const match = url.pathname.match(/([a-f0-9]{32})$/i)
+      || url.pathname.match(/([a-f0-9-]{36})$/i)
+      || url.pathname.match(/-([a-f0-9]{32})(?:\?|$)/i);
+    if (match) return match[1].replace(/-/g, '');
+  }
+  // Already an ID, just clean it
+  return input.replace(/-/g, '');
+}
 
 const { values } = parseArgs({
   options: {
@@ -15,20 +32,22 @@ const { values } = parseArgs({
 });
 
 if (!values.page) {
-  console.error('Usage: npx tsx read-item.ts --page <PAGE_ID> [--json] [--properties-only]');
+  console.error('Usage: read-item.ts --page <PAGE_ID|URL> [--json] [--properties-only]');
   process.exit(1);
 }
+
+const pageId = extractId(values.page);
 
 async function main() {
   try {
     // Get page metadata and properties
-    const page = await notion.pages.retrieve({ page_id: values.page! }) as any;
-    
+    const page = await notion.pages.retrieve({ page_id: pageId }) as any;
+
     if (values.json) {
       if (values['properties-only']) {
         console.log(JSON.stringify(page.properties, null, 2));
       } else {
-        const blocks = await notion.blocks.children.list({ block_id: values.page! });
+        const blocks = await notion.blocks.children.list({ block_id: pageId });
         console.log(JSON.stringify({ page, blocks: blocks.results }, null, 2));
       }
       return;
@@ -49,9 +68,9 @@ async function main() {
     if (!values['properties-only']) {
       // Get page content as markdown
       console.log('\n## Content\n');
-      const mdBlocks = await n2m.pageToMarkdown(values.page!);
+      const mdBlocks = await n2m.pageToMarkdown(pageId);
       const mdString = n2m.toMarkdownString(mdBlocks);
-      
+
       if (mdString.parent.trim()) {
         console.log(mdString.parent);
       } else {
@@ -61,7 +80,7 @@ async function main() {
 
     // Show comments if any
     try {
-      const comments = await notion.comments.list({ block_id: values.page! });
+      const comments = await notion.comments.list({ block_id: pageId });
       if (comments.results.length > 0) {
         console.log('\n## Comments\n');
         for (const comment of comments.results as any[]) {

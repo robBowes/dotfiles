@@ -21,31 +21,29 @@ const { values } = parseArgs({
   options: {
     database: { type: 'string', short: 'd' },
     title: { type: 'string', short: 't' },
+    due: { type: 'string' },
     status: { type: 'string', short: 's' },
     assign: { type: 'string', short: 'a' },
-    project: { type: 'string', short: 'p' },
-    priority: { type: 'string' },
-    props: { type: 'string' }, // JSON string for additional properties
     json: { type: 'boolean', default: false },
   },
 });
 
 if (!values.database || !values.title) {
-  console.error(`Usage: create-item.ts --database <DB_ID|URL> --title "Task name" [options]
+  console.error(`Usage: append-task.ts --database <DB_ID|URL> --title <text> [--due <date>] [--status <status>]
+
+Add a task with title and optional due date.
 
 Options:
+  --database, -d  Database ID or URL (required)
   --title, -t     Task title (required)
-  --status, -s    Status value (e.g., "Not Started", "In Progress", "Done")
+  --due           Due date (YYYY-MM-DD or "YYYY-MM-DD to YYYY-MM-DD")
+  --status, -s    Status value
   --assign, -a    Assignee name or UUID
-  --project, -p   Project name (for select properties)
-  --priority      Priority value
-  --props         Additional properties as JSON: '{"Key": {"type": "value"}}'
   --json          Output full response as JSON
 
 Examples:
-  create-item.ts -d abc123 -t "New task" -s "Not Started"
-  create-item.ts -d abc123 -t "Bug fix" --status "In Progress" --priority "High"
-  create-item.ts -d abc123 -t "Review" --props '{"Notes": {"rich_text": [{"text": {"content": "Check this"}}]}}'
+  append-task.ts -d abc123 -t "Review PR" --due 2025-01-15
+  append-task.ts -d abc123 -t "Sprint planning" --due "2025-01-20 to 2025-01-21" -s "Not Started"
 `);
   process.exit(1);
 }
@@ -81,21 +79,37 @@ function isUuid(value: string): boolean {
 
 async function main() {
   try {
-    // Get database schema to understand property types
     const db = await notion.databases.retrieve({ database_id: databaseId });
     const schema = db.properties as any;
-    
-    // Find the title property
+
     const titleProp = Object.entries(schema)
       .find(([_, p]: any) => p.type === 'title')?.[0] || 'Name';
-    
+
     const properties: any = {
       [titleProp]: {
         title: [{ text: { content: values.title } }],
       },
     };
-    
-    // Add status if provided
+
+    // Find and set due date property
+    if (values.due) {
+      const datePropName = Object.entries(schema)
+        .find(([name, p]: any) => p.type === 'date' &&
+          (name.toLowerCase().includes('due') || name.toLowerCase().includes('date'))
+        )?.[0];
+
+      if (datePropName) {
+        if (values.due.includes(' to ')) {
+          const [start, end] = values.due.split(' to ').map(d => d.trim());
+          properties[datePropName] = { date: { start, end } };
+        } else {
+          properties[datePropName] = { date: { start: values.due } };
+        }
+      } else {
+        console.error('Warning: No date property found in database');
+      }
+    }
+
     if (values.status && schema.Status) {
       if (schema.Status.type === 'status') {
         properties.Status = { status: { name: values.status } };
@@ -103,8 +117,7 @@ async function main() {
         properties.Status = { select: { name: values.status } };
       }
     }
-    
-    // Add assignee if provided
+
     if (values.assign && schema.Assign) {
       let userId: string;
       if (isUuid(values.assign)) {
@@ -119,51 +132,21 @@ async function main() {
       }
       properties.Assign = { people: [{ id: userId }] };
     }
-    
-    // Add project if provided
-    if (values.project && schema.Project) {
-      if (schema.Project.type === 'select') {
-        properties.Project = { select: { name: values.project } };
-      } else if (schema.Project.type === 'relation') {
-        // For relations, value should be page ID
-        properties.Project = { relation: [{ id: values.project }] };
-      }
-    }
-    
-    // Add priority if provided
-    if (values.priority && schema.Priority) {
-      if (schema.Priority.type === 'select') {
-        properties.Priority = { select: { name: values.priority } };
-      } else if (schema.Priority.type === 'status') {
-        properties.Priority = { status: { name: values.priority } };
-      }
-    }
-    
-    // Parse additional properties
-    if (values.props) {
-      try {
-        const additionalProps = JSON.parse(values.props);
-        Object.assign(properties, additionalProps);
-      } catch (e) {
-        console.error('Invalid JSON in --props:', e);
-        process.exit(1);
-      }
-    }
-    
+
     const page = await notion.pages.create({
       parent: { database_id: databaseId },
       properties,
     });
-    
+
     if (values.json) {
       console.log(JSON.stringify(page, null, 2));
     } else {
-      console.log('✓ Created successfully');
-      console.log(`  Page ID: ${page.id}`);
+      console.log('✓ Task created');
+      console.log(`  ID: ${page.id}`);
       console.log(`  Title: ${values.title}`);
+      if (values.due) console.log(`  Due: ${values.due}`);
       console.log(`  URL: ${(page as any).url}`);
     }
-    
   } catch (error: any) {
     console.error('Error:', JSON.stringify(error, null, 2));
     process.exit(1);

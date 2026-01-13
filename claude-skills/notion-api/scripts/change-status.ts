@@ -1,8 +1,21 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env tsx
 import { Client } from '@notionhq/client';
 import { parseArgs } from 'util';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
+
+function extractId(input: string): string {
+  if (input.includes('notion.so')) {
+    const url = new URL(input);
+    const pParam = url.searchParams.get('p');
+    if (pParam) return pParam.replace(/-/g, '');
+    const match = url.pathname.match(/([a-f0-9]{32})$/i)
+      || url.pathname.match(/([a-f0-9-]{36})$/i)
+      || url.pathname.match(/-([a-f0-9]{32})(?:\?|$)/i);
+    if (match) return match[1].replace(/-/g, '');
+  }
+  return input.replace(/-/g, '');
+}
 
 const { values } = parseArgs({
   options: {
@@ -14,7 +27,7 @@ const { values } = parseArgs({
 });
 
 if (!values.page || !values.status) {
-  console.error(`Usage: npx tsx change-status.ts --page <PAGE_ID> --status <STATUS_VALUE>
+  console.error(`Usage: change-status.ts --page <PAGE_ID|URL> --status <STATUS_VALUE>
 
 Options:
   --page, -p      Page ID (required)
@@ -26,17 +39,19 @@ Common status values:
   "Not Started", "In Progress", "Paused", "Done", "Blocked"
 
 Examples:
-  npx tsx change-status.ts -p abc123 -s "Done"
-  npx tsx change-status.ts --page abc123 --status "In Progress"
-  npx tsx change-status.ts -p abc123 -s "Complete" --property "Task Status"
+  change-status.ts -p abc123 -s "Done"
+  change-status.ts --page abc123 --status "In Progress"
+  change-status.ts -p abc123 -s "Complete" --property "Task Status"
 `);
   process.exit(1);
 }
 
+const pageId = extractId(values.page);
+
 async function main() {
   try {
     // Get the page to determine status property type
-    const page = await notion.pages.retrieve({ page_id: values.page! }) as any;
+    const page = await notion.pages.retrieve({ page_id: pageId }) as any;
     const statusProp = page.properties[values.property!];
     
     if (!statusProp) {
@@ -63,7 +78,7 @@ async function main() {
     const oldStatus = statusProp.status?.name || statusProp.select?.name || '(none)';
     
     const updated = await notion.pages.update({
-      page_id: values.page!,
+      page_id: pageId,
       properties: {
         [values.property!]: propertyUpdate,
       },

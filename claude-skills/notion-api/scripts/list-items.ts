@@ -1,8 +1,21 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env tsx
 import { Client } from "@notionhq/client";
 import { parseArgs } from "util";
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
+
+function extractId(input: string): string {
+  if (input.includes('notion.so')) {
+    const url = new URL(input);
+    const pParam = url.searchParams.get('p');
+    if (pParam) return pParam.replace(/-/g, '');
+    const match = url.pathname.match(/([a-f0-9]{32})$/i)
+      || url.pathname.match(/([a-f0-9-]{36})$/i)
+      || url.pathname.match(/-([a-f0-9]{32})(?:\?|$)/i);
+    if (match) return match[1].replace(/-/g, '');
+  }
+  return input.replace(/-/g, '');
+}
 
 const { values } = parseArgs({
   options: {
@@ -17,10 +30,12 @@ const { values } = parseArgs({
 
 if (!values.database) {
   console.error(
-    'Usage: npx tsx list-items.ts --database <DB_ID> [--status "Done"] [--project "SOC 2"] [--limit 20]',
+    'Usage: list-items.ts --database <DB_ID|URL> [--status "Done"] [--project "SOC 2"] [--limit 20]',
   );
   process.exit(1);
 }
+
+const databaseId = extractId(values.database);
 
 // Cache for resolved relation titles
 const relationCache = new Map<string, string>();
@@ -87,7 +102,7 @@ async function main() {
   }
 
   const queryParams: any = {
-    database_id: values.database,
+    database_id: databaseId,
     page_size: Math.min(parseInt(values.limit || "100"), 100),
   };
 

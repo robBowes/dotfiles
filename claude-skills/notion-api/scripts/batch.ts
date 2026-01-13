@@ -1,10 +1,10 @@
-#!/usr/bin/env npx tsx
+#!/usr/bin/env tsx
 /**
  * Batch operations helper using zx
- * 
+ *
  * Usage examples:
- *   npx tsx scripts/batch.ts mark-done <DB_ID> --filter-status "In Progress"
- *   npx tsx scripts/batch.ts export <DB_ID> --output items.json
+ *   batch.ts mark-done --database <DB_ID|URL> --filter-status "In Progress"
+ *   batch.ts export --database <DB_ID|URL> --output items.json
  */
 import { $ } from 'zx';
 import { Client } from '@notionhq/client';
@@ -14,6 +14,19 @@ import { writeFile } from 'fs/promises';
 $.verbose = false; // Quiet mode
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
+
+function extractId(input: string): string {
+  if (input.includes('notion.so')) {
+    const url = new URL(input);
+    const pParam = url.searchParams.get('p');
+    if (pParam) return pParam.replace(/-/g, '');
+    const match = url.pathname.match(/([a-f0-9]{32})$/i)
+      || url.pathname.match(/([a-f0-9-]{36})$/i)
+      || url.pathname.match(/-([a-f0-9]{32})(?:\?|$)/i);
+    if (match) return match[1].replace(/-/g, '');
+  }
+  return input.replace(/-/g, '');
+}
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -59,7 +72,7 @@ async function getItems(databaseId: string, status?: string, project?: string) {
 
 async function main() {
   if (!command || !values.database) {
-    console.log(`Usage: npx tsx scripts/batch.ts <command> --database <DB_ID> [options]
+    console.log(`Usage: batch.ts <command> --database <DB_ID|URL> [options]
 
 Commands:
   mark-done     Change status of filtered items to Done (or --new-status)
@@ -75,15 +88,17 @@ Options:
   --dry-run           Show what would be done without making changes
 
 Examples:
-  npx tsx batch.ts mark-done -d abc123 --filter-status "In Progress"
-  npx tsx batch.ts export -d abc123 -o backup.json
-  npx tsx batch.ts count -d abc123 --filter-status "Not Started"
+  batch.ts mark-done -d abc123 --filter-status "In Progress"
+  batch.ts export -d abc123 -o backup.json
+  batch.ts count -d abc123 --filter-status "Not Started"
 `);
     process.exit(1);
   }
-  
+
+  const databaseId = extractId(values.database);
+
   const items = await getItems(
-    values.database,
+    databaseId,
     values['filter-status'],
     values['filter-project']
   );
