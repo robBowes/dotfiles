@@ -1,0 +1,9 @@
+{
+  "name": "dotfiles",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}
