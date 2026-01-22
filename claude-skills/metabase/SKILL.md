@@ -10,274 +10,158 @@ allowed-tools:
 
 # Metabase Skill
 
-This skill provides comprehensive Metabase integration for querying data, managing questions/dashboards, and troubleshooting.
+This skill provides CLI scripts for interacting with Metabase.
 
-## Authentication
+## Setup
 
-Use these environment variables (already configured):
+```bash
+cd /Volumes/dev/git/dotfiles/claude-skills/metabase
+pnpm install
+```
 
-- `METABASE_URL`: Base URL for Metabase instance (usually `https://metabase.vessel.co`)
+## Environment Variables
+
+Required:
+- `METABASE_URL`: Base URL (e.g., `https://metabase.vessel.co`)
 - `METABASE_API_KEY`: API key for authentication
 
-**Important**: Always use simple double quotes for env vars: `"$METABASE_API_KEY"`
+## Scripts
 
-## Common Tasks
+All scripts support `--help` and `--json` flags.
 
-### 1. Query Data from Metabase Questions
-
-To fetch data from an existing question:
+### Cards (Questions)
 
 ```bash
-curl -H "X-API-KEY: $METABASE_API_KEY" \
-  "$METABASE_URL/api/card/{QUESTION_ID}/query/json"
+# List all cards
+./scripts/list-cards.ts
+
+# List cards in a collection
+./scripts/list-cards.ts --collection 5
+
+# Get card details
+./scripts/get-card.ts --id 123
+
+# Update card SQL from file
+./scripts/put-card.ts --id 123 query.sql
+
+# Update card SQL from stdin
+cat query.sql | ./scripts/put-card.ts --id 123
+
+# Execute card and get results
+./scripts/query-card.ts --id 123
+
+# Delete card
+./scripts/delete-card.ts --id 123
 ```
 
-To list available questions:
+### Dashboards
 
 ```bash
-curl -H "X-API-KEY: $METABASE_API_KEY" \
-  "$METABASE_URL/api/card"
+# List all dashboards
+./scripts/list-dashboards.ts
+
+# List dashboards in collection
+./scripts/list-dashboards.ts --collection 5
+
+# Get dashboard details
+./scripts/get-dashboard.ts --id 51
 ```
 
-### 2. Create/Update Questions
-
-Create a new question:
+### Databases & Schema
 
 ```bash
-curl -X POST \
-  -H "X-API-KEY: $METABASE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d @- \
-  "$METABASE_URL/api/card" <<'EOF'
-{
-  "name": "Question Name",
-  "dataset_query": {
-    "type": "native",
-    "native": {
-      "query": "SELECT * FROM table"
-    },
-    "database": 2
-  },
-  "display": "table",
-  "visualization_settings": {}
-}
-EOF
+# List connected databases
+./scripts/list-databases.ts
+
+# Get database schema (all tables/fields)
+./scripts/get-schema.ts --db 2
+
+# Filter to specific table
+./scripts/get-schema.ts --db 2 --table orders
 ```
 
-Update existing question:
+### Collections
 
 ```bash
-curl -X PUT \
-  -H "X-API-KEY: $METABASE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d @- \
-  "$METABASE_URL/api/card/{QUESTION_ID}" <<'EOF'
-{
-  "name": "Updated Question Name",
-  "dataset_query": {
-    "type": "native",
-    "native": {
-      "query": "SELECT * FROM updated_table"
-    },
-    "database": 2
-  }
-}
-EOF
+# List all collections
+./scripts/list-collections.ts
+
+# Get collection contents
+./scripts/get-collection.ts --id 5
+
+# Get root collection
+./scripts/get-collection.ts --id root
 ```
 
-### 3. Access Metabase API
-
-Key endpoints:
-
-- **Cards (Questions)**: `/api/card` (list), `/api/card/{id}` (get/update)
-- **Dashboards**: `/api/dashboard` (list), `/api/dashboard/{id}` (get)
-- **Databases**: `/api/database` (list), `/api/database/{id}` (get)
-- **Collections**: `/api/collection` (list)
-- **Search**: `/api/search?q={query}`
-
-### 4. Troubleshoot Queries
-
-Check query execution:
+### Users & Permissions
 
 ```bash
-curl -X POST \
-  -H "X-API-KEY: $METABASE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d @- \
-  "$METABASE_URL/api/dataset" <<'EOF'
-{
-  "type": "native",
-  "native": {
-    "query": "EXPLAIN ANALYZE SELECT ..."
-  },
-  "database": 2
-}
-EOF
+# List users
+./scripts/list-users.ts
+
+# Get permissions graph
+./scripts/get-permissions.ts
 ```
 
-Get database schema:
+## Output Formats
+
+All scripts default to human-readable output. Add `--json` for raw JSON:
 
 ```bash
-curl -H "X-API-KEY: $METABASE_API_KEY" \
-  "$METABASE_URL/api/database/{DATABASE_ID}/metadata"
+./scripts/get-card.ts --id 123 --json | jq '.dataset_query.native.query'
 ```
 
-## Best Practices
+## Common Workflows
 
-1. **Cache Results**: Save query results to files when analyzing large datasets
-2. **Use Native Queries**: For complex SQL, use `type: "native"` with direct SQL
-3. **Check Rate Limits**: Metabase may throttle API requests
-4. **Parse JSON**: Use `jq` or Node.js to parse JSON responses
-5. **Error Handling**: Check HTTP status codes and response errors
-
-## Example Workflow
+### Modify a question's SQL
 
 ```bash
-# 1. Search for a question
-QUESTIONS=$(curl -s -H "X-API-KEY: $METABASE_API_KEY" \
-  "$METABASE_URL/api/search?q=revenue")
+# 1. Get current SQL
+./scripts/get-card.ts --id 123
 
-# 2. Extract question ID
-QUESTION_ID=$(echo "$QUESTIONS" | jq -r '.data[0].id')
+# 2. Edit locally
+./scripts/get-card.ts --id 123 --json | jq -r '.dataset_query.native.query' > query.sql
+vim query.sql
 
-# 3. Fetch data
-curl -H "X-API-KEY: $METABASE_API_KEY" \
-  "$METABASE_URL/api/card/$QUESTION_ID/query/json" > data.json
-
-# 4. Analyze with Node.js or jq
-cat data.json | jq '[.[] | {revenue: .revenue, date: .date}]'
+# 3. Update
+./scripts/put-card.ts --id 123 query.sql
 ```
 
-## Tips
-
-- Use `/api/search` to find questions/dashboards by name
-- Add `?parameters=[...]` to apply filters to questions
-- Export results as CSV: `/api/card/{id}/query/csv`
-- Check question metadata: `/api/card/{id}` (no query param)
-- For large datasets, consider pagination or streaming
-
-## Common Issues
-
-1. **401 Unauthorized**: Check API key validity
-2. **404 Not Found**: Verify question/dashboard ID exists
-3. **Slow Queries**: Use EXPLAIN ANALYZE to optimize
-4. **Empty Results**: Check database connection and query syntax
-
-## Shell Quoting (Important!)
-
-The `$METABASE_API_KEY` env var may contain special characters. **All examples in this file use these patterns consistently - follow them exactly!**
-
-### Option 1: Simple Double Quotes (Recommended)
+### Explore database schema
 
 ```bash
-# Works for most cases - simplest approach
-curl -s -H "X-API-KEY: $METABASE_API_KEY" \
-    -H "Content-Type: application/json" \
-    "https://metabase.vessel.co/api/endpoint"
+# Find tables
+./scripts/get-schema.ts --db 2 --table user
+
+# Get full schema as JSON for analysis
+./scripts/get-schema.ts --db 2 --json > schema.json
 ```
 
-### Option 2: Printf for Complex Special Characters
+### Find questions in a collection
 
 ```bash
-# Most robust - handles any special characters
-curl -s -H "$(printf 'X-API-KEY: %s' "$METABASE_API_KEY")" \
-    -H "Content-Type: application/json" \
-    "https://metabase.vessel.co/api/endpoint"
+./scripts/get-collection.ts --id 5
 ```
 
-### Option 3: Heredocs for JSON Payloads
+## Troubleshooting
+
+### Auth issues
 
 ```bash
-# Cleanest for POST/PUT requests with JSON
-curl -s -X POST \
-    -H "X-API-KEY: $METABASE_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d @- \
-    "https://metabase.vessel.co/api/card" <<'EOF'
-{
-  "name": "Question Name",
-  "dataset_query": {
-    "type": "native",
-    "native": {"query": "SELECT * FROM table"},
-    "database": 2
-  }
-}
-EOF
+# Test auth - should show current user
+./scripts/list-users.ts
 ```
 
-**Avoid**: `bash -c` wrappers add unnecessary complexity and quoting layers.
+### 404 errors
 
-## Debugging Auth
-
-Always test auth first with `/api/user/current`:
+Card/dashboard IDs must exist. List first:
 
 ```bash
-curl -s -H "X-API-KEY: $METABASE_API_KEY" \
-    "https://metabase.vessel.co/api/user/current" | head -100
-```
-
-If this returns user JSON, auth works. If specific endpoints fail after, it's likely permissions.
-
-## Adding Cards to Dashboards
-
-**Important**: There's no POST endpoint for adding cards. Must use PUT with ALL cards:
-
-```bash
-# 1. Get existing dashboard cards
-curl -s -H "X-API-KEY: $METABASE_API_KEY" \
-    "https://metabase.vessel.co/api/dashboard/{ID}" | python3 -c "
-import sys, json
-
-d = json.load(sys.stdin)
-dashcards = d.get('dashcards', [])
-
-# Transform existing cards
-existing = []
-for dc in dashcards:
-    existing.append({
-        'id': dc['id'],
-        'card_id': dc['card_id'],
-        'row': dc['row'],
-        'col': dc['col'],
-        'size_x': dc['size_x'],
-        'size_y': dc['size_y'],
-        'parameter_mappings': dc.get('parameter_mappings', []),
-        'visualization_settings': dc.get('visualization_settings', {})
-    })
-
-# Add new cards with NEGATIVE IDs
-new_cards = [
-    {'id': -1, 'card_id': NEW_CARD_ID, 'row': 0, 'col': 0, 'size_x': 6, 'size_y': 3,
-     'parameter_mappings': [], 'visualization_settings': {}},
-]
-
-# Shift existing cards down if adding at top
-for card in existing:
-    card['row'] += 3
-
-print(json.dumps({'cards': new_cards + existing}))
-" > /tmp/dashboard_update.json
-
-# 2. Apply update with PUT
-curl -s -X PUT \
-    -H "X-API-KEY: $METABASE_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d @/tmp/dashboard_update.json \
-    "https://metabase.vessel.co/api/dashboard/{ID}/cards"
-```
-
-## JSON Parsing
-
-When `jq` fails on responses (control characters), use python3:
-
-```bash
-curl -s -H "X-API-KEY: $METABASE_API_KEY" \
-    "$METABASE_URL/api/card/123" | \
-    python3 -c "import sys,json; d=json.load(sys.stdin); print(d['id'])"
+./scripts/list-cards.ts | grep -i "search term"
 ```
 
 ## Vessel-Specific
 
 - Database ID: `2` (production)
 - Dashboard 51: Automated Portfolio Reporting
-- Always filter queries with `o.access_type = 'FULL'` for real org data
+- Filter queries with `o.access_type = 'FULL'` for real org data

@@ -1,0 +1,15 @@
+{
+  "name": "playwright-skill",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "yaml": "^2.3.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.8",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env tsx
 import { Client } from "@notionhq/client";
 import { parseArgs } from "util";
+import { populateUserCache, resolveUser } from './user-resolver';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
@@ -70,6 +71,8 @@ async function findProjectIdByName(name: string): Promise<string | null> {
 }
 
 async function main() {
+  await populateUserCache(notion);
+
   const filters: any[] = [];
 
   if (values.status) {
@@ -101,25 +104,40 @@ async function main() {
     });
   }
 
-  const queryParams: any = {
-    database_id: databaseId,
-    page_size: Math.min(parseInt(values.limit || "100"), 100),
-  };
-
-  if (filters.length > 0) {
-    queryParams.filter = filters.length === 1 ? filters[0] : { and: filters };
-  }
+  const limit = parseInt(values.limit || "100");
+  const filter =
+    filters.length === 0
+      ? undefined
+      : filters.length === 1
+        ? filters[0]
+        : { and: filters };
 
   try {
-    const response = await notion.databases.query(queryParams);
+    // Paginate through all results up to limit
+    const allPages: any[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const response = await notion.databases.query({
+        database_id: databaseId,
+        filter,
+        start_cursor: cursor,
+        page_size: Math.min(100, limit - allPages.length),
+      });
+      allPages.push(...response.results);
+      cursor =
+        response.has_more && allPages.length < limit
+          ? response.next_cursor!
+          : undefined;
+    } while (cursor);
 
     if (values.json) {
-      console.log(JSON.stringify(response.results, null, 2));
+      console.log(JSON.stringify(allPages, null, 2));
       return;
     }
 
     // Format output
-    const pages = response.results as any[];
+    const pages = allPages;
     const results: {
       title: string;
       id: string;
@@ -158,8 +176,8 @@ async function main() {
       console.log();
     }
 
-    if (response.has_more) {
-      console.log(`(More results available, use --limit to increase)`);
+    if (allPages.length >= limit) {
+      console.log(`(Showing first ${limit} results, use --limit to increase)`);
     }
   } catch (error: any) {
     console.error("Error:", JSON.stringify(error, null, 2));
@@ -183,7 +201,7 @@ function getStatus(props: any): string {
 }
 
 function getAssignee(props: any): string | null {
-  if (props.Assign?.people?.[0]?.name) return props.Assign.people[0].name;
+  if (props.Assign?.people?.[0]) return resolveUser(props.Assign.people[0]);
   return null;
 }
 

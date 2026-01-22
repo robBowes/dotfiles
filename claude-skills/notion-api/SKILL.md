@@ -55,7 +55,8 @@ All scripts are in `~/.claude/skills/notion-api/scripts/` and directly executabl
 | `search-pages.ts`   | Search pages by keyword                |
 | `sync-changes.ts`   | Sync pages to local markdown folder    |
 | `export-db.ts`      | Export database as CSV/MD/JSON         |
-| `clone-page.ts`     | Deep clone page content                |
+| `clone-page.ts`     | Deep clone page content (with property mapping) |
+| `migrate-database.ts` | Bulk migrate pages between databases |
 | `track-progress.ts` | Summarize status of database items     |
 | `quick-note.ts`     | Rapidly create page with title+content |
 
@@ -213,6 +214,33 @@ Supported markdown: `# h1`, `## h2`, `### h3`, `- bullets`, `1. numbered`, `> qu
 
 # Clone as child of another page
 ~/.claude/skills/notion-api/scripts/clone-page.ts --page <PAGE_ID|URL> --target-page <PAGE_ID|URL>
+
+# Clone with property mapping (rename or transform values)
+~/.claude/skills/notion-api/scripts/clone-page.ts --page <PAGE_ID|URL> --target-db <DB_ID|URL> \
+  --property-map 'Name:Task name' \
+  --property-map 'Status.Triage:Status.Not Started'
+```
+
+**Property Mapping:** Use `--property-map` (repeatable) to rename properties or map status/select values.
+
+### Migrate Database
+
+Bulk migrate pages between databases with optional filtering and archiving.
+
+```bash
+# Preview migration (dry-run)
+~/.claude/skills/notion-api/scripts/migrate-database.ts --source <DB_ID|URL> --target <DB_ID|URL> --dry-run
+
+# Migrate filtered pages
+~/.claude/skills/notion-api/scripts/migrate-database.ts -s <DB_ID> -t <DB_ID> --filter-status "Not Done"
+
+# Migrate with property mapping and archive source
+~/.claude/skills/notion-api/scripts/migrate-database.ts -s <DB_ID> -t <DB_ID> \
+  --property-map 'Status.Backlog:Status.Not Started' \
+  --archive-source
+
+# Skip content cloning (properties only)
+~/.claude/skills/notion-api/scripts/migrate-database.ts -s <DB_ID> -t <DB_ID> --clone-content=false
 ```
 
 ### Track Progress

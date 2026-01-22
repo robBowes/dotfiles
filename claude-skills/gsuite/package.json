@@ -1,0 +1,27 @@
+{
+  "name": "gsuite",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "auth": "tsx scripts/auth.ts",
+    "gmail:list": "tsx scripts/gmail-list.ts",
+    "gmail:read": "tsx scripts/gmail-read.ts",
+    "gmail:action": "tsx scripts/gmail-action.ts",
+    "gmail:unsubscribe": "tsx scripts/gmail-unsubscribe.ts",
+    "gmail:cleanup": "tsx scripts/gmail-cleanup.ts",
+    "gmail:filter": "tsx scripts/gmail-filter.ts",
+    "tasks:list": "tsx scripts/tasks-list.ts",
+    "tasks:add": "tsx scripts/tasks-add.ts",
+    "tasks:complete": "tsx scripts/tasks-complete.ts",
+    "tasks:delete": "tsx scripts/tasks-delete.ts",
+    "calendar:list": "tsx scripts/calendar-list.ts",
+    "calendar:create": "tsx scripts/calendar-create.ts",
+    "calendar:update": "tsx scripts/calendar-update.ts",
+    "calendar:delete": "tsx scripts/calendar-delete.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

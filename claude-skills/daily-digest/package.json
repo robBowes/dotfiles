@@ -1,0 +1,17 @@
+{
+  "name": "daily-digest",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "digest": "./src/digest.ts"
+  },
+  "scripts": {
+    "digest": "tsx src/digest.ts",
+    "google-auth": "tsx scripts/setup-oauth.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

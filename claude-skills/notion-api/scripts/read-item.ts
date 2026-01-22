@@ -2,6 +2,7 @@
 import { Client } from '@notionhq/client';
 import { NotionToMarkdown } from 'notion-to-md';
 import { parseArgs } from 'util';
+import { populateUserCache, resolveUser } from './user-resolver';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const n2m = new NotionToMarkdown({ notionClient: notion });
@@ -40,6 +41,8 @@ const pageId = extractId(values.page);
 
 async function main() {
   try {
+    await populateUserCache(notion);
+
     // Get page metadata and properties
     const page = await notion.pages.retrieve({ page_id: pageId }) as any;
 
@@ -84,7 +87,7 @@ async function main() {
       if (comments.results.length > 0) {
         console.log('\n## Comments\n');
         for (const comment of comments.results as any[]) {
-          const author = comment.created_by?.name || 'Unknown';
+          const author = resolveUser(comment.created_by);
           const text = comment.rich_text?.map((t: any) => t.plain_text).join('') || '';
           console.log(`- **${author}**: ${text}`);
         }
@@ -128,7 +131,7 @@ function formatProperty(key: string, prop: any): string | null {
         ? `${prop.date.start} → ${prop.date.end}`
         : prop.date.start;
     case 'people':
-      return prop.people?.map((p: any) => p.name).join(', ') || '(empty)';
+      return prop.people?.length ? prop.people.map((p: any) => resolveUser(p)).join(', ') : '(empty)';
     case 'checkbox':
       return prop.checkbox ? '✓' : '✗';
     case 'url':
@@ -148,11 +151,11 @@ function formatProperty(key: string, prop: any): string | null {
     case 'created_time':
       return prop.created_time;
     case 'created_by':
-      return prop.created_by?.name || '(unknown)';
+      return resolveUser(prop.created_by);
     case 'last_edited_time':
       return prop.last_edited_time;
     case 'last_edited_by':
-      return prop.last_edited_by?.name || '(unknown)';
+      return resolveUser(prop.last_edited_by);
     case 'files':
       return prop.files?.map((f: any) => f.name || f.url).join(', ') || '(empty)';
     case 'unique_id':

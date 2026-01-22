@@ -71,6 +71,7 @@ require("lazy").setup({
       { "<leader>fg", "<cmd>Telescope live_grep<cr>", desc = "Live grep" },
       { "<leader>fb", "<cmd>Telescope buffers<cr>", desc = "Buffers" },
       { "<leader>fh", "<cmd>Telescope help_tags<cr>", desc = "Help" },
+      { "<leader>fk", "<cmd>Telescope keymaps<cr>", desc = "Find keymaps" },
       { "<leader><leader>", "<cmd>Telescope find_files<cr>", desc = "Find files" },
     },
   },
@@ -208,6 +209,25 @@ require("lazy").setup({
     end,
   },
 
+  -- Cheatsheet (searchable keybindings)
+  {
+    "doctorfree/cheatsheet.nvim",
+    dependencies = {
+      "nvim-telescope/telescope.nvim",
+      "nvim-lua/popup.nvim",
+      "nvim-lua/plenary.nvim",
+    },
+    keys = {
+      { "<leader>?", "<cmd>Cheatsheet<cr>", desc = "Cheatsheet" },
+    },
+    config = function()
+      require("cheatsheet").setup({
+        bundled_cheatsheets = { "default", "nerd-fonts" },
+        bundled_plugin_cheatsheets = true,
+      })
+    end,
+  },
+
   -- Auto pairs
   {
     "windwp/nvim-autopairs",
@@ -283,6 +303,22 @@ require("lazy").setup({
     config = function()
       local alpha = require("alpha")
       local dashboard = require("alpha.themes.dashboard")
+
+      local tips = {
+        "Press <space> and wait to see which-key hints",
+        "<leader>fk - Search all keymaps",
+        "<leader>? - Open cheatsheet",
+        "s + 2 chars - Leap to any location",
+        "<leader>a - Add file to harpoon, <leader>1-4 to jump",
+        "gd - Go to definition, gr - Go to references",
+        "<leader>xx - Toggle diagnostics panel",
+        "<leader>tg - Open lazygit",
+        "<C-\\> - Toggle terminal",
+        "<leader>cf - Format buffer",
+        "<leader>sr - Search & replace across files",
+        "cs\"' - Change surrounding quotes",
+      }
+
       dashboard.section.header.val = {
         "                                                     ",
         "  ███╗   ██╗███████╗ ██████╗ ██╗   ██╗██╗███╗   ███╗ ",
@@ -298,8 +334,14 @@ require("lazy").setup({
         dashboard.button("r", "  Recent files", ":Telescope oldfiles<CR>"),
         dashboard.button("g", "  Live grep", ":Telescope live_grep<CR>"),
         dashboard.button("e", "  File tree", ":NvimTreeToggle<CR>"),
+        dashboard.button("?", "  Cheatsheet", ":Cheatsheet<CR>"),
         dashboard.button("q", "  Quit", ":qa<CR>"),
       }
+
+      -- Random tip section
+      dashboard.section.footer.val = "Tip: " .. tips[math.random(#tips)]
+      dashboard.section.footer.opts.hl = "Comment"
+
       alpha.setup(dashboard.config)
     end,
   },

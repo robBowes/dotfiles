@@ -61,7 +61,7 @@ Options:
 
 Supported markdown:
   # h1, ## h2, ### h3, **bold**, *italic*, \`code\`, [links](url)
-  - Bullets, 1. Numbered, - [ ] Todos, > Quotes, \`\`\`code blocks\`\`\`, ---
+  - Bullets, 1. Numbered, - [ ] Todos, > Quotes, \`\`\`code blocks\`\`\`, ---, tables
 
 Examples:
   append-content.ts --page abc123 "# Hello World"
@@ -342,6 +342,46 @@ function tokensToBlocks(tokens: Token[]): Block[] {
           divider: {},
         });
         break;
+
+      case "table": {
+        const t = token as Tokens.Table;
+        const tableWidth = t.header.length;
+
+        // Build table rows: header first, then data rows
+        const tableRows: Block[] = [];
+
+        // Header row
+        tableRows.push({
+          object: "block",
+          type: "table_row",
+          table_row: {
+            cells: t.header.map(cell => parseInlineFormatting(cell.text)),
+          },
+        });
+
+        // Data rows
+        for (const row of t.rows) {
+          tableRows.push({
+            object: "block",
+            type: "table_row",
+            table_row: {
+              cells: row.map(cell => parseInlineFormatting(cell.text)),
+            },
+          });
+        }
+
+        blocks.push({
+          object: "block",
+          type: "table",
+          table: {
+            table_width: tableWidth,
+            has_column_header: true,
+            has_row_header: false,
+            children: tableRows,
+          },
+        });
+        break;
+      }
 
       case "space":
         // Skip blank lines

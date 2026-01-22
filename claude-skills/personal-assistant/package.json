@@ -1,0 +1,6 @@
+{
+  "name": "personal-assistant",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Autonomous personal assistant - orchestrates task handling via Claude Code instances"
+}

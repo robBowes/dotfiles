@@ -4,6 +4,7 @@ import { NotionToMarkdown } from 'notion-to-md';
 import { parseArgs } from 'util';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { populateUserCache, resolveUser } from './user-resolver';
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const n2m = new NotionToMarkdown({ notionClient: notion });
@@ -165,7 +166,7 @@ function formatProperty(prop: any): string | null {
       if (!prop.date) return null;
       return prop.date.end ? `${prop.date.start} to ${prop.date.end}` : prop.date.start;
     case 'people':
-      return prop.people?.map((p: any) => p.name).join(', ') || null;
+      return prop.people?.length ? prop.people.map((p: any) => resolveUser(p)).join(', ') : null;
     case 'checkbox':
       return prop.checkbox ? 'Yes' : 'No';
     case 'url':
@@ -187,6 +188,7 @@ function formatProperty(prop: any): string | null {
 
 async function main() {
   try {
+    await populateUserCache(notion);
     const pages = await getAllPages();
     console.error(`Found ${pages.length} pages`);
 
