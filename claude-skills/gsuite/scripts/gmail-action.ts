@@ -1,6 +1,18 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { createInterface } from 'readline'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
+
+async function readStdin(): Promise<string[]> {
+  if (process.stdin.isTTY) return []
+  const rl = createInterface({ input: process.stdin })
+  const lines: string[] = []
+  for await (const line of rl) {
+    const trimmed = line.trim()
+    if (trimmed) lines.push(trimmed)
+  }
+  return lines
+}
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
 
@@ -8,11 +20,19 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
   },
 })
 
+const account: Account = values.personal ? 'personal' : 'work'
+
 function printHelp() {
-  console.log(`Usage: gmail-action <action> <message-id> [message-id2] [message-id3] ...
+  console.log(`Usage: gmail-action <action> [message-id...]
+
+Reads message IDs from arguments or stdin (one per line).
+
+Options:
+  -p, --personal   Use personal account (default: work)
 
 Actions:
   archive    Remove from inbox (keeps in All Mail)
@@ -24,13 +44,14 @@ Actions:
 
 Examples:
   gmail-action archive 18d4a5b2c3e4f5g6
-  gmail-action archive 18d4a5b2c3e4f5g6 18d4a5b2c3e4f5g7 18d4a5b2c3e4f5g8
-  gmail-action read 18d4a5b2c3e4f5g6 18d4a5b2c3e4f5g7
+  gmail-action archive id1 id2 id3
+  gmail-list --ids | gmail-action archive
+  gmail-list --ids -q "from:spam" | gmail-action trash
 `)
 }
 
 async function modifyMessage(id: string, addLabels: string[], removeLabels: string[]) {
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)
@@ -55,7 +76,7 @@ async function modifyMessage(id: string, addLabels: string[], removeLabels: stri
 }
 
 async function trashMessage(id: string) {
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)
@@ -76,12 +97,19 @@ async function trashMessage(id: string) {
 }
 
 async function main() {
-  if (values.help || positionals.length < 2) {
+  if (values.help) {
     printHelp()
-    process.exit(values.help ? 0 : 1)
+    process.exit(0)
   }
 
-  const [action, ...messageIds] = positionals
+  const [action, ...argsIds] = positionals
+  const stdinIds = await readStdin()
+  const messageIds = argsIds.length > 0 ? argsIds : stdinIds
+
+  if (!action || messageIds.length === 0) {
+    printHelp()
+    process.exit(1)
+  }
 
   for (const messageId of messageIds) {
     try {

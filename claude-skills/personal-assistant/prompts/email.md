@@ -45,4 +45,7 @@ Each script has a shebang and is executable - call them directly as shown.
 - Drata webinar/event reminders → archive (event already registered, in calendar)
 - Slack workspace confirmation emails → archive (workspace already set up)
 - Linear workspace invitations → defer to Tasks (requires decision to accept/join)
+- Webinar registrations → ask user how to handle (register, skip, or defer to Tasks)
+- GitHub SDK/feature announcements → keep for reference if relevant to agentic tooling
+- Conference invitations from partners → user preference (archive if not attending, defer to Tasks if considering)
 </learnings>

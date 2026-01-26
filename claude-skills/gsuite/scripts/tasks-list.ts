@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 import { fetchJson } from '../src/lib/api.js'
 import { relativeTime } from '../src/lib/time.js'
 
@@ -9,11 +9,14 @@ const TASKS_API = 'https://tasks.googleapis.com/tasks/v1'
 const { values } = parseArgs({
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     list: { type: 'string', short: 'l' },
     all: { type: 'boolean', short: 'a' },
     json: { type: 'boolean', short: 'j' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 interface TaskListsResponse {
   items?: { id: string; title: string }[]
@@ -44,6 +47,7 @@ function printHelp() {
   console.log(`Usage: tasks-list [options]
 
 Options:
+  -p, --personal      Use personal account (default: work)
   -l, --list <name>   Filter by task list name
   -a, --all           Include completed tasks
   -j, --json          Output as JSON
@@ -61,7 +65,7 @@ async function main() {
     process.exit(0)
   }
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

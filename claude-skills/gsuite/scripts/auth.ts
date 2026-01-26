@@ -3,7 +3,18 @@ import { createServer } from 'http'
 import { URL } from 'url'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
-import { GOOGLE_SCOPES } from '../src/lib/google-auth.js'
+import { parseArgs } from 'util'
+import { GOOGLE_SCOPES, type Account } from '../src/lib/google-auth.js'
+
+const { values } = parseArgs({
+  options: {
+    personal: { type: 'boolean', short: 'p' },
+    help: { type: 'boolean', short: 'h' },
+  },
+})
+
+const account: Account = values.personal ? 'personal' : 'work'
+const envPrefix = account === 'work' ? 'GOOGLE_WORK' : 'GOOGLE_PERSONAL'
 
 const PORT = 8765
 const REDIRECT_URI = `http://localhost:${PORT}/callback`
@@ -58,16 +69,32 @@ function updateEnvFile(envPath: string, key: string, value: string): void {
 }
 
 async function main() {
-  const clientId = process.env.GOOGLE_CLIENT_ID
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  if (values.help) {
+    console.log(`Usage: auth [options]
+
+Options:
+  -p, --personal   Authenticate personal account (default: work)
+  -h, --help       Show help
+
+Examples:
+  pnpm auth        # Authenticate work account
+  pnpm auth -p     # Authenticate personal account
+`)
+    process.exit(0)
+  }
+
+  console.log(`Authenticating ${account} account...`)
+
+  const clientId = process.env[`${envPrefix}_CLIENT_ID`]
+  const clientSecret = process.env[`${envPrefix}_CLIENT_SECRET`]
 
   if (!clientId || !clientSecret) {
-    console.log('Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET')
+    console.log(`Missing ${envPrefix}_CLIENT_ID or ${envPrefix}_CLIENT_SECRET`)
     console.log('1. Go to https://console.cloud.google.com/apis/credentials')
     console.log('2. Create OAuth 2.0 Client ID (Desktop app)')
     console.log('3. Add to root .env.local:')
-    console.log('   GOOGLE_CLIENT_ID=your_client_id')
-    console.log('   GOOGLE_CLIENT_SECRET=your_secret')
+    console.log(`   ${envPrefix}_CLIENT_ID=your_client_id`)
+    console.log(`   ${envPrefix}_CLIENT_SECRET=your_secret`)
     process.exit(1)
   }
 
@@ -132,13 +159,13 @@ async function main() {
       }
 
       // Save refresh token (update, don't append)
-      updateEnvFile(envPath, 'GOOGLE_REFRESH_TOKEN', tokens.refresh_token)
+      updateEnvFile(envPath, `${envPrefix}_REFRESH_TOKEN`, tokens.refresh_token)
 
       res.writeHead(200, { 'Content-Type': 'text/html' })
-      res.end('<h1>Success!</h1><p>Refresh token saved. You can close this window.</p>')
+      res.end(`<h1>Success!</h1><p>${account} account refresh token saved. You can close this window.</p>`)
 
-      console.log(`\nRefresh token saved to ${envPath}`)
-      console.log('You can now use the gsuite scripts.')
+      console.log(`\n${account} account refresh token saved to ${envPath}`)
+      console.log(`You can now use gsuite scripts${account === 'personal' ? ' with -p flag' : ''}.`)
 
       setTimeout(() => {
         server.close()

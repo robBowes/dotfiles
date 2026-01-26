@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 import { fetchJson } from '../src/lib/api.js'
 
 const TASKS_API = 'https://tasks.googleapis.com/tasks/v1'
@@ -9,12 +9,15 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     list: { type: 'string', short: 'l' },
     due: { type: 'string', short: 'd' },
     notes: { type: 'string', short: 'n' },
     json: { type: 'boolean', short: 'j' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 interface TaskListsResponse {
   items?: { id: string; title: string }[]
@@ -32,6 +35,7 @@ function printHelp() {
   console.log(`Usage: tasks-add <title> [options]
 
 Options:
+  -p, --personal      Use personal account (default: work)
   -l, --list <name>   Task list name (default: first list)
   -d, --due <date>    Due date (YYYY-MM-DD)
   -n, --notes <text>  Task notes
@@ -52,7 +56,7 @@ async function main() {
 
   const title = positionals.join(' ')
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

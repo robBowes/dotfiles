@@ -1,6 +1,18 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { createInterface } from 'readline'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
+
+async function readStdin(): Promise<string[]> {
+  if (process.stdin.isTTY) return []
+  const rl = createInterface({ input: process.stdin })
+  const lines: string[] = []
+  for await (const line of rl) {
+    const trimmed = line.trim()
+    if (trimmed) lines.push(trimmed)
+  }
+  return lines
+}
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
 
@@ -8,17 +20,28 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
+    to: { type: 'string', short: 't' },
   },
 })
 
+const account: Account = values.personal ? 'personal' : 'work'
+
 function printHelp() {
   console.log(`Usage: gmail-forward <message-id> <to-email>
+       gmail-forward --to <email> [message-id...]
 
-Forwards an email to the specified address.
+Forwards email(s) to the specified address.
+Reads message IDs from arguments or stdin (one per line).
+
+Options:
+  -p, --personal   Use personal account (default: work)
+  -t, --to <email> Destination email (required for stdin mode)
 
 Examples:
   gmail-forward 18d4a5b2c3e4f5g6 receipts@company.com
-  gmail-forward 19be2305218af0b2 robert.vessel@dext.cc
+  gmail-forward --to receipts@company.com id1 id2 id3
+  gmail-list --ids -q "from:receipts" | gmail-forward --to receipts@dext.cc
 `)
 }
 
@@ -94,29 +117,15 @@ async function fetchAttachment(messageId: string, attachmentId: string, token: s
   return base64.match(/.{1,76}/g)?.join('\r\n') ?? base64
 }
 
-async function main() {
-  if (values.help || positionals.length < 2) {
-    printHelp()
-    process.exit(values.help ? 0 : 1)
-  }
-
-  const [messageId, toEmail] = positionals
-
-  const tokenResult = await getGoogleAccessToken()
-  if (!tokenResult.ok) {
-    console.error(tokenResult.error)
-    process.exit(1)
-  }
-  const token = tokenResult.data
-
+async function forwardMessage(messageId: string, toEmail: string, token: string, fromEmail: string) {
   // Get original message
   const msgRes = await fetch(`${GMAIL_API}/messages/${messageId}?format=full`, {
     headers: { Authorization: `Bearer ${token}` },
   })
 
   if (!msgRes.ok) {
-    console.error(`Failed to get message: ${msgRes.status} ${await msgRes.text()}`)
-    process.exit(1)
+    console.error(`Failed to get message ${messageId}: ${msgRes.status}`)
+    return false
   }
 
   const msg = await msgRes.json() as {
@@ -157,23 +166,9 @@ async function main() {
       attachments.push({ filename: att.filename, mimeType: att.mimeType, data })
     }
   }
-  if (attachments.length > 0) {
-    console.log(`Found ${attachments.length} attachment(s)`)
-  }
-
-  // Get my email for From header
-  const profileRes = await fetch(`${GMAIL_API}/profile`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!profileRes.ok) {
-    console.error(`Failed to get profile: ${profileRes.status}`)
-    process.exit(1)
-  }
-  const profile = await profileRes.json() as { emailAddress: string }
 
   // Build forwarded message
   const fwdSubject = originalSubject.startsWith('Fwd:') ? originalSubject : `Fwd: ${originalSubject}`
-
   const fwdHeader = `
 ---------- Forwarded message ---------
 From: ${originalFrom}
@@ -182,14 +177,13 @@ Subject: ${originalSubject}
 To: ${originalTo}
 `
 
-  const boundary = `boundary_${Date.now()}`
-  const altBoundary = `alt_${Date.now()}`
+  const boundary = `boundary_${Date.now()}_${messageId}`
+  const altBoundary = `alt_${Date.now()}_${messageId}`
   let rawMessage: string
 
   if (attachments.length > 0) {
-    // Multipart/mixed with body + attachments
     const parts: string[] = [
-      `From: ${profile.emailAddress}`,
+      `From: ${fromEmail}`,
       `To: ${toEmail}`,
       `Subject: ${fwdSubject}`,
       `MIME-Version: 1.0`,
@@ -197,7 +191,6 @@ To: ${originalTo}
       ``,
     ]
 
-    // Add body part (as multipart/alternative if html exists)
     if (htmlBody) {
       parts.push(
         `--${boundary}`,
@@ -228,7 +221,6 @@ To: ${originalTo}
       )
     }
 
-    // Add attachments
     for (const att of attachments) {
       parts.push(
         `--${boundary}`,
@@ -244,9 +236,8 @@ To: ${originalTo}
     parts.push(`--${boundary}--`)
     rawMessage = parts.join('\r\n')
   } else if (htmlBody) {
-    // Multipart with both text and html (no attachments)
     rawMessage = [
-      `From: ${profile.emailAddress}`,
+      `From: ${fromEmail}`,
       `To: ${toEmail}`,
       `Subject: ${fwdSubject}`,
       `MIME-Version: 1.0`,
@@ -266,9 +257,8 @@ To: ${originalTo}
       `--${boundary}--`,
     ].join('\r\n')
   } else {
-    // Plain text only
     rawMessage = [
-      `From: ${profile.emailAddress}`,
+      `From: ${fromEmail}`,
       `To: ${toEmail}`,
       `Subject: ${fwdSubject}`,
       `Content-Type: text/plain; charset="UTF-8"`,
@@ -278,7 +268,6 @@ To: ${originalTo}
     ].join('\r\n')
   }
 
-  // Send the message
   const sendRes = await fetch(`${GMAIL_API}/messages/send`, {
     method: 'POST',
     headers: {
@@ -291,12 +280,64 @@ To: ${originalTo}
   })
 
   if (!sendRes.ok) {
-    console.error(`Failed to send: ${sendRes.status} ${await sendRes.text()}`)
-    process.exit(1)
+    console.error(`Failed to forward ${messageId}: ${sendRes.status}`)
+    return false
   }
 
   const sent = await sendRes.json() as { id: string }
-  console.log(`Forwarded ${messageId} to ${toEmail} (sent message: ${sent.id})`)
+  console.log(`Forwarded ${messageId} to ${toEmail} (sent: ${sent.id})`)
+  return true
+}
+
+async function main() {
+  if (values.help) {
+    printHelp()
+    process.exit(0)
+  }
+
+  // Determine toEmail and messageIds
+  let toEmail: string
+  let messageIds: string[]
+
+  if (values.to) {
+    // --to mode: IDs from args or stdin
+    toEmail = values.to
+    const stdinIds = await readStdin()
+    messageIds = positionals.length > 0 ? positionals : stdinIds
+  } else if (positionals.length >= 2) {
+    // Legacy: gmail-forward <id> <email>
+    messageIds = [positionals[0]]
+    toEmail = positionals[1]
+  } else {
+    printHelp()
+    process.exit(1)
+  }
+
+  if (!toEmail || messageIds.length === 0) {
+    printHelp()
+    process.exit(1)
+  }
+
+  const tokenResult = await getGoogleAccessToken(account)
+  if (!tokenResult.ok) {
+    console.error(tokenResult.error)
+    process.exit(1)
+  }
+  const token = tokenResult.data
+
+  // Get my email for From header
+  const profileRes = await fetch(`${GMAIL_API}/profile`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!profileRes.ok) {
+    console.error(`Failed to get profile: ${profileRes.status}`)
+    process.exit(1)
+  }
+  const profile = await profileRes.json() as { emailAddress: string }
+
+  for (const messageId of messageIds) {
+    await forwardMessage(messageId, toEmail, token, profile.emailAddress)
+  }
 }
 
 main().catch(err => {

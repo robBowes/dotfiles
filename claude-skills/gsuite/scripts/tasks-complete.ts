@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 
 const TASKS_API = 'https://tasks.googleapis.com/tasks/v1'
 
@@ -8,10 +8,13 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     list: { type: 'string', short: 'l' },
     uncomplete: { type: 'boolean', short: 'u' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 function printHelp() {
   console.log(`Usage: tasks-complete <task-id> --list <list-id>
@@ -19,6 +22,7 @@ function printHelp() {
 Mark a task as completed (or uncompleted).
 
 Options:
+  -p, --personal      Use personal account (default: work)
   -l, --list <id>     Task list ID (required)
   -u, --uncomplete    Mark as not completed instead
 
@@ -37,7 +41,7 @@ async function main() {
   const [taskId] = positionals
   const listId = values.list
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

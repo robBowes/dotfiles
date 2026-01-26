@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
 
@@ -8,9 +8,12 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     calendar: { type: 'string', short: 'c' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 function printHelp() {
   console.log(`Usage: calendar-delete <event-id> --calendar <calendar-id>
@@ -18,6 +21,7 @@ function printHelp() {
 Delete a calendar event.
 
 Options:
+  -p, --personal          Use personal account (default: work)
   -c, --calendar <id>     Calendar ID (required)
 
 Examples:
@@ -35,7 +39,7 @@ async function main() {
   const [eventId] = positionals
   const calendarId = values.calendar
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

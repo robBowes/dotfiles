@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 import { fetchJson } from '../src/lib/api.js'
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
@@ -9,19 +9,23 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     from: { type: 'string', short: 'f' },
     to: { type: 'string', short: 't' },
     subject: { type: 'string', short: 's' },
     query: { type: 'string', short: 'q' },
     label: { type: 'string', short: 'l' },
     'use-existing': { type: 'boolean' },
-    'skip-inbox': { type: 'boolean' },
+    'skip-inbox': { type: 'boolean', default: true },
+    'no-skip-inbox': { type: 'boolean' },
     'mark-read': { type: 'boolean' },
     star: { type: 'boolean' },
     trash: { type: 'boolean' },
     json: { type: 'boolean', short: 'j' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 interface Label {
   id: string
@@ -62,12 +66,14 @@ Create options (at least one criteria required):
 Actions:
   -l, --label <name>       Add label (created if doesn't exist)
   --use-existing           Use existing label without creating
-  --skip-inbox             Remove from inbox
+  --skip-inbox             Remove from inbox (default: true)
+  --no-skip-inbox          Keep in inbox
   --mark-read              Mark as read
   --star                   Add star
   --trash                  Move to trash
 
 Other:
+  -p, --personal           Use personal account (default: work)
   -j, --json               Output as JSON
   -h, --help               Show help
 
@@ -170,7 +176,7 @@ async function main() {
     process.exit(values.help ? 0 : 1)
   }
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)
@@ -231,7 +237,8 @@ async function main() {
         removeLabelIds: [],
       }
 
-      if (values['skip-inbox']) action.removeLabelIds!.push('INBOX')
+      const skipInbox = values['skip-inbox'] && !values['no-skip-inbox']
+      if (skipInbox) action.removeLabelIds!.push('INBOX')
       if (values['mark-read']) action.removeLabelIds!.push('UNREAD')
       if (values.star) action.addLabelIds!.push('STARRED')
       if (values.trash) action.addLabelIds!.push('TRASH')
@@ -257,7 +264,7 @@ async function main() {
       console.log(`  Criteria: ${summary.join(', ')}`)
 
       const actionSummary: string[] = []
-      if (values['skip-inbox']) actionSummary.push('skip inbox')
+      if (skipInbox) actionSummary.push('skip inbox')
       if (values['mark-read']) actionSummary.push('mark read')
       if (values.star) actionSummary.push('star')
       if (values.trash) actionSummary.push('trash')

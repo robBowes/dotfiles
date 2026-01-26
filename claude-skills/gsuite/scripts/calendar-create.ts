@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 import { fetchJson } from '../src/lib/api.js'
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
@@ -9,6 +9,7 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     calendar: { type: 'string', short: 'c' },
     start: { type: 'string', short: 's' },
     end: { type: 'string', short: 'e' },
@@ -19,6 +20,8 @@ const { values, positionals } = parseArgs({
   },
 })
 
+const account: Account = values.personal ? 'personal' : 'work'
+
 interface CalendarListResponse {
   items?: { id: string; summary: string; primary?: boolean }[]
 }
@@ -27,6 +30,7 @@ function printHelp() {
   console.log(`Usage: calendar-create <title> --start <datetime> [options]
 
 Options:
+  -p, --personal          Use personal account (default: work)
   -c, --calendar <id>     Calendar ID (default: primary)
   -s, --start <datetime>  Start time (ISO 8601 or "2024-01-20 14:00")
   -e, --end <datetime>    End time (default: 1 hour after start)
@@ -65,7 +69,7 @@ async function main() {
 
   const title = positionals.join(' ')
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

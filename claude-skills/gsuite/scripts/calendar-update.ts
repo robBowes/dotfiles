@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
 
@@ -8,6 +8,7 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     calendar: { type: 'string', short: 'c' },
     title: { type: 'string', short: 't' },
     start: { type: 'string', short: 's' },
@@ -18,10 +19,13 @@ const { values, positionals } = parseArgs({
   },
 })
 
+const account: Account = values.personal ? 'personal' : 'work'
+
 function printHelp() {
   console.log(`Usage: calendar-update <event-id> --calendar <calendar-id> [options]
 
 Options:
+  -p, --personal          Use personal account (default: work)
   -c, --calendar <id>     Calendar ID (required)
   -t, --title <text>      New title
   -s, --start <datetime>  New start time
@@ -55,7 +59,7 @@ async function main() {
   const [eventId] = positionals
   const calendarId = values.calendar
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

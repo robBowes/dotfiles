@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 import { fetchJson } from '../src/lib/api.js'
 import { relativeTime } from '../src/lib/time.js'
 
@@ -9,11 +9,14 @@ const CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
 const { values } = parseArgs({
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     calendar: { type: 'string', short: 'c' },
     days: { type: 'string', short: 'd', default: '1' },
     json: { type: 'boolean', short: 'j' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 interface CalendarListResponse {
   items?: { id: string; summary: string; selected?: boolean; primary?: boolean }[]
@@ -45,6 +48,7 @@ function printHelp() {
   console.log(`Usage: calendar-list [options]
 
 Options:
+  -p, --personal          Use personal account (default: work)
   -c, --calendar <name>   Filter by calendar name
   -d, --days <n>          Days to look ahead (default: 1)
   -j, --json              Output as JSON
@@ -62,7 +66,7 @@ async function main() {
     process.exit(0)
   }
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

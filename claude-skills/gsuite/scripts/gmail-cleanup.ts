@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 import { fetchJson } from '../src/lib/api.js'
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
@@ -8,10 +8,13 @@ const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
 const { values } = parseArgs({
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     'dry-run': { type: 'boolean', short: 'n' },
     limit: { type: 'string', short: 'l', default: '50' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 // Email cleanup rules - emails matching these get archived
 const CLEANUP_RULES = [
@@ -46,6 +49,7 @@ function printHelp() {
 Archives emails matching predefined noise rules.
 
 Options:
+  -p, --personal   Use personal account (default: work)
   -n, --dry-run    Show what would be archived without doing it
   -l, --limit <n>  Max emails to process per rule (default: 50)
   -h, --help       Show this help
@@ -79,7 +83,7 @@ async function main() {
     process.exit(0)
   }
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

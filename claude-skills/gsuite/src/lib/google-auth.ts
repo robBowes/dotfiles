@@ -2,26 +2,33 @@ import { fetchJson, getEnv, err, type Result } from './api.js'
 
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
+export type Account = 'work' | 'personal'
+
 interface TokenResponse {
   access_token: string
   expires_in: number
   token_type: string
 }
 
-let cachedToken: { token: string; expiresAt: number } | null = null
+const tokenCache: Record<Account, { token: string; expiresAt: number } | null> = {
+  work: null,
+  personal: null,
+}
 
-export async function getGoogleAccessToken(): Promise<Result<string>> {
+export async function getGoogleAccessToken(account: Account = 'work'): Promise<Result<string>> {
   // Return cached token if valid
-  if (cachedToken && Date.now() < cachedToken.expiresAt - 60000) {
-    return { ok: true, data: cachedToken.token }
+  const cached = tokenCache[account]
+  if (cached && Date.now() < cached.expiresAt - 60000) {
+    return { ok: true, data: cached.token }
   }
 
-  const clientId = getEnv('GOOGLE_CLIENT_ID')
-  const clientSecret = getEnv('GOOGLE_CLIENT_SECRET')
-  const refreshToken = getEnv('GOOGLE_REFRESH_TOKEN')
+  const prefix = account === 'work' ? 'GOOGLE_WORK' : 'GOOGLE_PERSONAL'
+  const clientId = getEnv(`${prefix}_CLIENT_ID`)
+  const clientSecret = getEnv(`${prefix}_CLIENT_SECRET`)
+  const refreshToken = getEnv(`${prefix}_REFRESH_TOKEN`)
 
   if (!clientId || !clientSecret || !refreshToken) {
-    return err('Missing GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, or GOOGLE_REFRESH_TOKEN (run pnpm setup)')
+    return err(`Missing ${prefix}_CLIENT_ID, ${prefix}_CLIENT_SECRET, or ${prefix}_REFRESH_TOKEN (run pnpm auth${account === 'personal' ? ' -p' : ''})`)
   }
 
   const params = new URLSearchParams({
@@ -39,12 +46,12 @@ export async function getGoogleAccessToken(): Promise<Result<string>> {
 
   if (!result.ok) return result
 
-  cachedToken = {
+  tokenCache[account] = {
     token: result.data.access_token,
     expiresAt: Date.now() + result.data.expires_in * 1000,
   }
 
-  return { ok: true, data: cachedToken.token }
+  return { ok: true, data: tokenCache[account]!.token }
 }
 
 // Full access scopes for gsuite skill

@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
 
@@ -8,17 +8,21 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     json: { type: 'boolean', short: 'j' },
     html: { type: 'boolean' },
   },
 })
 
+const account: Account = values.personal ? 'personal' : 'work'
+
 function printHelp() {
   console.log(`Usage: gmail-read <message-id>
 
 Options:
-  --json    Output as JSON (includes headers + body)
-  --html    Prefer HTML content over plain text
+  -p, --personal   Use personal account (default: work)
+  --json           Output as JSON (includes headers + body)
+  --html           Prefer HTML content over plain text
 
 Examples:
   gmail-read 18d4a5b2c3e4f5g6
@@ -85,7 +89,7 @@ async function main() {
 
   const [messageId] = positionals
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)

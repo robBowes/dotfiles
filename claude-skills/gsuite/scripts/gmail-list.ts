@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { parseArgs } from 'util'
-import { getGoogleAccessToken } from '../src/lib/google-auth.js'
+import { getGoogleAccessToken, type Account } from '../src/lib/google-auth.js'
 import { fetchJson, type Result } from '../src/lib/api.js'
 import { relativeTime } from '../src/lib/time.js'
 
@@ -9,13 +9,19 @@ const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me'
 const { values } = parseArgs({
   options: {
     help: { type: 'boolean', short: 'h' },
+    personal: { type: 'boolean', short: 'p' },
     query: { type: 'string', short: 'q', default: 'is:unread' },
     limit: { type: 'string', short: 'l', default: '20' },
     offset: { type: 'string', short: 'o', default: '0' },
     cursor: { type: 'string', short: 'c' },
     json: { type: 'boolean', short: 'j' },
+    ids: { type: 'boolean' },
+    inbox: { type: 'boolean', short: 'i', default: true },
+    'no-inbox': { type: 'boolean' },
   },
 })
+
+const account: Account = values.personal ? 'personal' : 'work'
 
 interface MessageListResponse {
   messages?: { id: string }[]
@@ -45,15 +51,20 @@ function printHelp() {
   console.log(`Usage: gmail-list [options]
 
 Options:
+  -p, --personal         Use personal account (default: work)
   -q, --query <query>    Gmail search query (default: is:unread)
   -l, --limit <n>        Results per page (default: 20)
   -o, --offset <n>       Skip first N results (default: 0)
   -c, --cursor <token>   Page token for cursor pagination
   -j, --json             Output as JSON (includes nextCursor)
+      --ids              Output only message IDs (one per line, for piping)
+  -i, --inbox            Only inbox emails (default: true)
+      --no-inbox         Include all labels (sent, trash, etc)
 
 Examples:
-  gmail-list                         # List unread emails
-  gmail-list -q "from:boss"          # Emails from boss
+  gmail-list                         # List unread inbox emails
+  gmail-list --no-inbox              # List unread from all labels
+  gmail-list -q "from:boss"          # Emails from boss in inbox
   gmail-list -l 10                   # First 10 results
   gmail-list -l 10 -o 10             # Results 11-20
   gmail-list -c <token>              # Next page via cursor
@@ -67,7 +78,7 @@ async function main() {
     process.exit(0)
   }
 
-  const tokenResult = await getGoogleAccessToken()
+  const tokenResult = await getGoogleAccessToken(account)
   if (!tokenResult.ok) {
     console.error(tokenResult.error)
     process.exit(1)
@@ -75,7 +86,9 @@ async function main() {
 
   const token = tokenResult.data
   const headers = { Authorization: `Bearer ${token}` }
-  const query = encodeURIComponent(values.query ?? 'is:unread')
+  const inboxOnly = values.inbox && !values['no-inbox']
+  const baseQuery = values.query ?? 'is:unread'
+  const fullQuery = inboxOnly ? `in:inbox ${baseQuery}` : baseQuery
   const limit = parseInt(values.limit ?? '20', 10)
   const offset = parseInt(values.offset ?? '0', 10)
   const cursor = values.cursor
@@ -89,7 +102,7 @@ async function main() {
   // Fetch enough messages to satisfy offset + limit
   while (allMessageIds.length < fetchCount) {
     const url = new URL(`${GMAIL_API}/messages`)
-    url.searchParams.set('q', values.query ?? 'is:unread')
+    url.searchParams.set('q', fullQuery)
     url.searchParams.set('maxResults', String(Math.min(100, fetchCount - allMessageIds.length)))
     if (pageToken) url.searchParams.set('pageToken', pageToken)
 
@@ -132,6 +145,13 @@ async function main() {
       date: getHeader('Date'),
       labels: msg.labelIds ?? [],
     })
+  }
+
+  if (values.ids) {
+    for (const msg of results) {
+      console.log(msg.id)
+    }
+    return
   }
 
   if (values.json) {

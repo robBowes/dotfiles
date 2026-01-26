@@ -9,113 +9,153 @@ Manage Gmail, Google Tasks, and Google Calendar via CLI scripts.
 
 ## Setup
 
-Requires OAuth credentials in root `.env.local`:
+Scripts are in PATH - call directly (e.g., `gmail-list`, `tasks-add`).
+
+Requires OAuth credentials in root `.env.local`. Supports work (default) and personal accounts:
 
 ```
-GOOGLE_CLIENT_ID=xxx
-GOOGLE_CLIENT_SECRET=xxx
-GOOGLE_REFRESH_TOKEN=xxx  # via pnpm auth
+# Work account (default)
+GOOGLE_WORK_CLIENT_ID=xxx
+GOOGLE_WORK_CLIENT_SECRET=xxx
+GOOGLE_WORK_REFRESH_TOKEN=xxx  # via auth
+
+# Personal account (optional)
+GOOGLE_PERSONAL_CLIENT_ID=xxx
+GOOGLE_PERSONAL_CLIENT_SECRET=xxx
+GOOGLE_PERSONAL_REFRESH_TOKEN=xxx  # via auth -p
 ```
 
-Run `pnpm auth` from this package to authenticate (opens browser).
+Run `auth` for work account, `auth -p` for personal (opens browser).
+
+## Account Selection
+
+All commands default to work account. Add `-p` / `--personal` flag for personal:
+```bash
+gmail-list           # work account
+gmail-list -p        # personal account
+```
 
 ## Gmail
 
 ```bash
 # List emails
-pnpm gmail:list                    # unread
-pnpm gmail:list -q "from:boss"     # search query
-pnpm gmail:list --json
+gmail-list                    # unread
+gmail-list -q "from:boss"     # search query
+gmail-list --json             # full JSON output
+gmail-list --ids              # IDs only (for piping)
 
 # Read email body
-pnpm gmail:read <message-id>
-pnpm gmail:read <message-id> --json
+gmail-read <message-id>
+gmail-read <message-id> --json
 
 # Actions
-pnpm gmail:action archive <id>     # remove from inbox
-pnpm gmail:action read <id>        # mark read
-pnpm gmail:action unread <id>      # mark unread
-pnpm gmail:action trash <id>       # delete
-pnpm gmail:action star <id>
-pnpm gmail:action unstar <id>
+gmail-action archive <id>     # remove from inbox
+gmail-action read <id>        # mark read
+gmail-action unread <id>      # mark unread
+gmail-action trash <id>       # delete
+gmail-action star <id>
+gmail-action unstar <id>
 
 # Unsubscribe
-pnpm gmail:unsubscribe <id>        # show unsub link
-pnpm gmail:unsubscribe <id> --open # open in browser
+gmail-unsubscribe <id>        # show unsub link
+gmail-unsubscribe <id> --open # open in browser
 
 # Auto-cleanup (archive noise)
-pnpm gmail:cleanup                 # archive matching rules
-pnpm gmail:cleanup --dry-run      # preview without archiving
-pnpm gmail:cleanup -l 100          # process up to 100 per rule
+gmail-cleanup                 # archive matching rules
+gmail-cleanup --dry-run      # preview without archiving
+gmail-cleanup -l 100          # process up to 100 per rule
 
 # Filters (server-side rules)
-pnpm gmail:filter list
-pnpm gmail:filter create --from "noise@example.com" --skip-inbox --label "Auto/Noise"
-pnpm gmail:filter create --query "subject:alert" --skip-inbox --mark-read
-pnpm gmail:filter delete <filter-id>
+gmail-filter list
+gmail-filter create --from "noise@example.com" --skip-inbox --label "Auto/Noise"
+gmail-filter create --query "subject:alert" --skip-inbox --mark-read
+gmail-filter delete <filter-id>
 ```
 
 ## Tasks
 
 ```bash
 # List tasks (shows list IDs needed for other commands)
-pnpm tasks:list
-pnpm tasks:list -l "Work"          # filter by list name
-pnpm tasks:list --all              # include completed
-pnpm tasks:list --json
+tasks-list
+tasks-list -l "Work"          # filter by list name
+tasks-list --all              # include completed
+tasks-list --json
 
 # Add task
-pnpm tasks:add "Task title"
-pnpm tasks:add "Task" -l "Work"           # specific list
-pnpm tasks:add "Task" -d 2024-01-20       # with due date
-pnpm tasks:add "Task" -n "Notes here"     # with notes
+tasks-add "Task title"
+tasks-add "Task" -l "Work"           # specific list
+tasks-add "Task" -d 2024-01-20       # with due date
+tasks-add "Task" -n "Notes here"     # with notes
 
 # Complete task (need task ID and list ID from tasks:list)
-pnpm tasks:complete <task-id> -l <list-id>
-pnpm tasks:complete <task-id> -l <list-id> --uncomplete
+tasks-complete <task-id> -l <list-id>
+tasks-complete <task-id> -l <list-id> --uncomplete
 
 # Delete task
-pnpm tasks:delete <task-id> -l <list-id>
+tasks-delete <task-id> -l <list-id>
 ```
 
 ## Calendar
 
 ```bash
 # List events (shows calendar IDs needed for other commands)
-pnpm calendar:list                 # today
-pnpm calendar:list -d 7            # next 7 days
-pnpm calendar:list -c "Work"       # specific calendar
-pnpm calendar:list --json
+calendar-list                 # today
+calendar-list -d 7            # next 7 days
+calendar-list -c "Work"       # specific calendar
+calendar-list --json
 
 # Create event
-pnpm calendar:create "Meeting" -s "2024-01-20 14:00"
-pnpm calendar:create "Meeting" -s "2024-01-20 14:00" -e "2024-01-20 15:00"
-pnpm calendar:create "Vacation" -s "2024-01-20" -e "2024-01-25" --allday
-pnpm calendar:create "Lunch" -s "..." -l "Cafe" -d "Discussion"
+calendar-create "Meeting" -s "2024-01-20 14:00"
+calendar-create "Meeting" -s "2024-01-20 14:00" -e "2024-01-20 15:00"
+calendar-create "Vacation" -s "2024-01-20" -e "2024-01-25" --allday
+calendar-create "Lunch" -s "..." -l "Cafe" -d "Discussion"
 
 # Update event (need event ID and calendar ID from calendar:list)
-pnpm calendar:update <event-id> -c <calendar-id> -t "New Title"
-pnpm calendar:update <event-id> -c <calendar-id> -s "2024-01-20 15:00"
+calendar-update <event-id> -c <calendar-id> -t "New Title"
+calendar-update <event-id> -c <calendar-id> -s "2024-01-20 15:00"
 
 # Delete event
-pnpm calendar:delete <event-id> -c <calendar-id>
+calendar-delete <event-id> -c <calendar-id>
+```
+
+## Piping
+
+Commands support piping IDs via stdin for bulk operations:
+
+```bash
+# Archive all Slack notifications
+gmail-list --ids -q "from:slack.com" | gmail-action archive
+
+# Trash all promotional emails
+gmail-list --ids -q "category:promotions" | gmail-action trash
+
+# Forward receipts to accounting
+gmail-list --ids -q "subject:receipt" | gmail-forward --to receipts@company.com
+
+# Bulk unsubscribe (opens each in browser)
+gmail-list --ids -q "unsubscribe" | gmail-unsubscribe --open
 ```
 
 ## Common Workflows
 
 ### Process unread emails
 ```bash
-pnpm gmail:list --json | jq '.[] | {id, from, subject}'
-pnpm gmail:read <id>
-pnpm gmail:action archive <id>
+gmail-list --json | jq '.messages[] | {id, from, subject}'
+gmail-read <id>
+gmail-action archive <id>
+```
+
+### Bulk archive by search
+```bash
+gmail-list --ids -q "from:noreply@github.com" | gmail-action archive
 ```
 
 ### Add task with due date
 ```bash
-pnpm tasks:add "Review PR" -d 2024-01-20 -l "Work"
+tasks-add "Review PR" -d 2024-01-20 -l "Work"
 ```
 
 ### Schedule meeting
 ```bash
-pnpm calendar:create "Team sync" -s "2024-01-20 10:00" -e "2024-01-20 10:30"
+calendar-create "Team sync" -s "2024-01-20 10:00" -e "2024-01-20 10:30"
 ```
